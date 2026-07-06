@@ -5,7 +5,7 @@ export type SensorType = "temperatura" | "umidade" | "ph" | "npk";
 export type EntityStatus = "online" | "offline" | "manutencao";
 
 export interface Leira {
-  id: string;
+  id: number;
   nome: string;
   comprimento: number; // metros
   largura: number; // metros
@@ -13,7 +13,7 @@ export interface Leira {
 
 export interface Haste {
   id: string;
-  leiraId: string;
+  leiraId: number;
   nome: string;
   identificacao: string;
   coordenadaX: number;
@@ -69,10 +69,10 @@ export interface SeriePonto {
 
 export interface DashboardResumo {
   temperaturaMedia: number;
+  temperaturaMax: number;
   umidadeMedia: number;
-  phMedio: number;
-  npkMedio: number;
   alertasAtivos: number;
+  ultimaLeitura: Date;
   historicoTemperatura: SeriePonto[];
   historicoUmidade: SeriePonto[];
   ultimosAlertas: Alerta[];

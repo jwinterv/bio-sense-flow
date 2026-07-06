@@ -9,7 +9,7 @@ import type {
 } from "@/types";
 
 export const mockLeira: Leira = {
-  id: "leira-01",
+  id: 1,
   nome: "Leira 01 — Pátio Norte",
   comprimento: 40,
   largura: 4,

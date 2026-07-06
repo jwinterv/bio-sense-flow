@@ -168,7 +168,7 @@ function DashboardPage() {
       title="Dashboard"
       subtitle="Visão consolidada da bioconversão em tempo real"
     >
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         <StatCard
           label="Temperatura média"
           value={data.temperaturaMedia}
@@ -177,6 +177,14 @@ function DashboardPage() {
           tone="primary"
           trend="up"
           trendLabel="+0.4°C nas últimas 2h"
+        />
+        <StatCard
+          label="Temperatura máxima"
+          value={data.temperaturaMax}
+          unit="°C"
+          icon={<Thermometer className="h-4 w-4" />}
+          tone="primary"
+          trend="up"
         />
         <StatCard
           label="Umidade média"
@@ -188,26 +196,31 @@ function DashboardPage() {
           trendLabel="Dentro da faixa ideal"
         />
         <StatCard
-          label="pH médio"
-          value={data.phMedio}
-          icon={<FlaskConical className="h-4 w-4" />}
-          trend="flat"
-          trendLabel="Estável"
-        />
-        <StatCard
-          label="NPK médio"
-          value={data.npkMedio}
-          unit="pts"
-          icon={<Sprout className="h-4 w-4" />}
-          tone="success"
-        />
-        <StatCard
           label="Alertas ativos"
           value={data.alertasAtivos}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={data.alertasAtivos > 0 ? "destructive" : "success"}
           trendLabel={data.alertasAtivos > 0 ? "Requer atenção" : "Sem incidentes"}
         />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 md:p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-primary/10 p-2 text-primary">
+              <Sprout className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Última leitura</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {data.ultimaLeitura.toLocaleString("pt-BR")}
+              </p>
+            </div>
+          </div>
+          <div className="rounded-full border border-primary/20 bg-background/70 px-3 py-1 text-sm font-medium text-primary">
+            Atualização em tempo real
+          </div>
+        </div>
       </div>
 
       <Panel

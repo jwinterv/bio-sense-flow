@@ -1,12 +1,20 @@
 import { Box, Layers } from "lucide-react";
 import { EmptyState } from "./Feedback";
 
-/**
- * Placeholder para o Heatmap 3D.
- * Integração real (ex: Three.js) será adicionada futuramente.
- * Recebe o array de hastes para já reservar a área proporcional.
- */
-export function Heatmap3D({ height = 360 }: { height?: number }) {
+interface HeatmapCell {
+  x: number;
+  y: number;
+  value: number;
+}
+
+interface Heatmap3DProps {
+  height?: number;
+  title?: string;
+  unit?: string;
+  values?: HeatmapCell[];
+}
+
+export function Heatmap3D({ height = 360, title, unit }: Heatmap3DProps) {
   return (
     <div
       className="relative w-full overflow-hidden rounded-lg border border-border bg-[radial-gradient(ellipse_at_top,theme(colors.primary/15%),transparent_60%),linear-gradient(180deg,var(--surface-elevated),var(--surface))]"
@@ -25,12 +33,12 @@ export function Heatmap3D({ height = 360 }: { height?: number }) {
       <div className="relative flex h-full items-center justify-center">
         <EmptyState
           icon={<Box className="h-6 w-6" />}
-          title="Heatmap 3D"
-          description="Área reservada para visualização volumétrica da leira. Renderização será integrada em breve."
+          title={title ?? "Heatmap 3D"}
+          description={`Placeholder para visualização de ${title?.toLowerCase() ?? "heatmap"}. A seleção de variável permanece disponível para uso futuro.`}
           action={
             <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
               <Layers className="h-3.5 w-3.5" />
-              Placeholder
+              {unit ? `${unit} · placeholder` : "Placeholder"}
             </div>
           }
         />

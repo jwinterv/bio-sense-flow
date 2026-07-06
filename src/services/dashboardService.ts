@@ -12,11 +12,15 @@ const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
 export function getDashboard(): Promise<DashboardResumo> {
   const online = mockHastes.filter((h) => h.status === "online");
+  const temperaturasOnline = online.map((h) => h.temperatura);
+
   const data: DashboardResumo = {
-    temperaturaMedia: +avg(online.map((h) => h.temperatura)).toFixed(1),
+    temperaturaMedia: +avg(temperaturasOnline).toFixed(1),
+    temperaturaMax: temperaturasOnline.length > 0 
+      ? +Math.max(...temperaturasOnline).toFixed(1) 
+      : 0,
     umidadeMedia: 61.4,
-    phMedio: 6.8,
-    npkMedio: 74,
+    ultimaLeitura: new Date(),
     alertasAtivos: mockAlertas.filter((a) => a.status === "ativo").length,
     historicoTemperatura: mockHistoricoTemp,
     historicoUmidade: mockHistoricoUmid,
