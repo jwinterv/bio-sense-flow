@@ -1,59 +1,221 @@
-import { mockDelay } from "./api";
-import {
-  mockAlertas,
-  mockHastes,
-  mockHistoricoTemp,
-  mockHistoricoUmid,
-  mockLeira,
-} from "./mockData";
-import type { DashboardResumo, MonitoramentoResumo, SeriePonto } from "@/types";
+import { api } from "./api";
+import type {
+  DashboardResumo,
+  Alerta,
+  Severity,
+  Haste,
+} from "@/types";
 
-const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
-
-export function getDashboard(): Promise<DashboardResumo> {
-  const online = mockHastes.filter((h) => h.status === "online");
-  const temperaturasOnline = online.map((h) => h.temperatura);
-
-  const data: DashboardResumo = {
-    temperaturaMedia: +avg(temperaturasOnline).toFixed(1),
-    temperaturaMax: temperaturasOnline.length > 0 
-      ? +Math.max(...temperaturasOnline).toFixed(1) 
-      : 0,
-    umidadeMedia: 61.4,
-    ultimaLeitura: new Date(),
-    alertasAtivos: mockAlertas.filter((a) => a.status === "ativo").length,
-    historicoTemperatura: mockHistoricoTemp,
-    historicoUmidade: mockHistoricoUmid,
-    ultimosAlertas: mockAlertas.slice(0, 4),
-    hastes: mockHastes,
-  };
-  return mockDelay(data);
-}
-
-export function getMonitoramento(): Promise<MonitoramentoResumo> {
-  const online = mockHastes.filter((h) => h.status === "online");
-  return mockDelay({
-    leira: mockLeira,
-    temperaturaMedia: +avg(online.map((h) => h.temperatura)).toFixed(1),
-    umidadeMedia: 61.4,
-    phMedio: 6.8,
-    npkMedio: 74,
-    hastes: mockHastes,
-    ultimaAtualizacao: new Date().toISOString(),
-  });
+function converterGravidade(gravidade: number): Severity {
+  switch (gravidade) {
+    case 1:
+      return "baixa";
+    case 2:
+      return "media";
+    case 3:
+      return "alta";
+    default:
+      return "baixa";
+  }
 }
 
 export interface HistoricoFiltros {
-  periodo?: "24h" | "7d" | "30d";
-  sensor?: string;
-  hasteId?: string;
+  hastes: string[];
+
+  sensores: string[];
+
+  sensorId: "1" | "2" | "ambos";
+
+  periodo:
+    | "1h"
+    | "6h"
+    | "12h"
+    | "24h"
+    | "7d"
+    | "30d"
+    | "custom";
+
+  inicio?: string;
+  fim?: string;
 }
-export function getHistorico(_f: HistoricoFiltros = {}): Promise<{
-  temperatura: SeriePonto[];
-  umidade: SeriePonto[];
-}> {
-  return mockDelay({
-    temperatura: mockHistoricoTemp,
-    umidade: mockHistoricoUmid,
-  });
+
+export interface HistoricoPonto {
+  timestamp: string;
+  valor: number;
+}
+
+export interface HistoricoSerie {
+  nome: string;
+  unidade: string;
+  dados: HistoricoPonto[];
+}
+
+export interface HistoricoResponse {
+  series: HistoricoSerie[];
+}
+
+export async function getHistorico(
+  f: HistoricoFiltros = {
+    periodo: "24h",
+    sensores: ["temperatura", "umidade"],
+    hastes: [],
+    sensorId: "ambos",
+  }
+): Promise<HistoricoResponse> {
+
+
+  const sensores = f.sensores.length > 0
+    ? f.sensores
+    : ["temperatura"];
+
+
+  const params = new URLSearchParams();
+
+
+  params.append(
+    "sensores",
+    sensores.join(",")
+  );
+
+
+  params.append(
+    "periodo",
+    f.periodo
+  );
+
+  if(f.periodo==="custom"){
+
+    params.append(
+      "inicio",
+      f.inicio!
+    );
+
+    params.append(
+      "fim",
+      f.fim!
+    );
+
+    }
+
+
+  if (f.hastes.length > 0) {
+    params.append(
+      "hastes",
+      f.hastes.join(",")
+    );
+  }
+
+
+  params.append(
+    "sensorId",
+    f.sensorId
+  );
+
+
+  const series = await api
+    .get<HistoricoResponse>(
+      `/historico?${params.toString()}`
+    )
+    .catch(() => ({
+      series: [],
+    }));
+
+
+  return series;
+}
+
+function getUnidade(sensor: string): string {
+
+  switch(sensor){
+
+    case "temperatura":
+      return "°C";
+
+    case "umidade":
+      return "%";
+
+    case "ph":
+      return "";
+
+    case "metano":
+    case "amonia":
+      return "ppm";
+
+    default:
+      return "";
+  }
+}
+export async function getAlertas(limite?: number): Promise<Alerta[]> {
+
+  const url = limite
+    ? `/alertas?limite=${limite}`
+    : "/alertas";
+
+  const dados = await api.get<{
+    id: string;
+    origem: string;
+    data: string;
+    hasteId: string;
+    tipo: string;
+    severidade: number;
+    status: string;
+    mensagem: string;
+    instrucao: string;
+  }[]>(url);
+
+  return dados.map((a) => ({
+    id: a.id,
+    origem: a.origem,
+    data: a.data,
+    hasteId: a.hasteId,
+    tipo: a.tipo,
+    severidade: converterGravidade(a.severidade),
+    status: a.status as "ativo" | "resolvido",
+    mensagem: a.mensagem,
+    instrucao: a.instrucao,
+  }));
+}
+
+export async function getHastes(): Promise<Haste[]> {
+  return api.get<Haste[]>("/hastes");
+}
+
+export async function getDashboard(): Promise<DashboardResumo> {
+
+  const [dashboard, historico, alertas, hastes] = await Promise.all([
+    api.get<{
+      temperaturaMedia: number;
+      temperaturaMax: number;
+      umidadeMedia: number;
+      alertasAtivos: number;
+    }>("/dashboard"),
+
+    getHistorico(),
+
+    getAlertas(),
+
+    getHastes(),
+  ]);
+
+  return {
+    temperaturaMedia: dashboard.temperaturaMedia,
+    temperaturaMax: dashboard.temperaturaMax,
+    umidadeMedia: dashboard.umidadeMedia,
+    ultimaLeitura: new Date(),
+    alertasAtivos: dashboard.alertasAtivos,
+
+    historicoTemperatura:
+      historico.series.find(
+        (s) => s.nome === "temperatura"
+      )?.dados ?? [],
+
+    historicoUmidade:
+      historico.series.find(
+        (s) => s.nome === "umidade"
+      )?.dados ?? [],
+
+    ultimosAlertas: alertas,
+    hastes,
+  };
+
 }

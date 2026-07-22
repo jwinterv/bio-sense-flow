@@ -1,25 +1,22 @@
-import { mockDelay } from "./api";
-import { mockHastes } from "./mockData";
+import { api } from "./api";
 import type { Haste } from "@/types";
 
-let hastes = [...mockHastes];
+export const getHastes = () =>
+  api.get<Haste[]>("/hastes");
 
-export const getHastes = () => mockDelay(hastes);
-export const getHaste = (id: string) =>
-  mockDelay(hastes.find((h) => h.id === id) ?? null);
-
-export const createHaste = (data: Omit<Haste, "id">) => {
-  const nova: Haste = { ...data, id: `haste-${Date.now()}` };
-  hastes = [...hastes, nova];
-  return mockDelay(nova);
+// Vamos implementar estes depois
+export const getHaste = async (_id: string) => {
+  throw new Error("Não implementado");
 };
 
-export const updateHaste = (id: string, data: Partial<Haste>) => {
-  hastes = hastes.map((h) => (h.id === id ? { ...h, ...data } : h));
-  return mockDelay(hastes.find((h) => h.id === id)!);
-};
+export const createHaste = (data: Omit<Haste, "id">) =>
+  api.post<Haste>("/hastes", data);
 
-export const deleteHaste = (id: string) => {
-  hastes = hastes.filter((h) => h.id !== id);
-  return mockDelay({ ok: true });
-};
+export const updateHaste = (
+  id: string,
+  data: Partial<Haste>
+) =>
+  api.put<Haste>(`/hastes/${id}`, data);
+
+export const deleteHaste = (id: string) =>
+  api.del<{ ok: boolean }>(`/hastes/${id}`);

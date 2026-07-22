@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { AlertStatus, EntityStatus, Severity } from "@/types";
+import { AlertCircle, AlertOctagon, AlertTriangle, Info } from "lucide-react";
 import type { ReactNode } from "react";
 
 type Tone = "success" | "warning" | "destructive" | "muted" | "primary" | "info";
@@ -42,6 +43,17 @@ export function StatusBadge({
     custom: { tone: "muted", label: "", dot: false },
   };
   const cfg = map[status] ?? map.custom;
+  const icon =
+    status === "critica" ? (
+      <AlertOctagon className="h-3.5 w-3.5" />
+    ) : status === "alta" ? (
+      <AlertTriangle className="h-3.5 w-3.5" />
+    ) : status === "media" ? (
+      <AlertCircle className="h-3.5 w-3.5" />
+    ) : status === "baixa" ? (
+      <Info className="h-3.5 w-3.5" />
+    ) : null;
+
   return (
     <span
       className={cn(
@@ -50,7 +62,7 @@ export function StatusBadge({
         className,
       )}
     >
-      {cfg.dot && (
+      {cfg.dot ? (
         <span className="relative flex h-1.5 w-1.5">
           <span
             className={cn(
@@ -69,6 +81,8 @@ export function StatusBadge({
             )}
           />
         </span>
+      ) : (
+        icon
       )}
       {children ?? cfg.label}
     </span>

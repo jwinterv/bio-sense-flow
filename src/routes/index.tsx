@@ -31,7 +31,7 @@ import type { Alerta, Haste, SeriePonto } from "@/types";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard · BioMonitor" },
+      { title: "Dashboard" },
       { name: "description", content: "Visão geral da leira em tempo real." },
     ],
   }),
@@ -123,16 +123,7 @@ const hastesColumns: Column<Haste>[] = [
     render: (h) => (
       <div>
         <p className="font-medium text-foreground">{h.nome}</p>
-        <p className="text-xs text-muted-foreground">{h.identificacao}</p>
       </div>
-    ),
-  },
-  {
-    key: "temp",
-    header: "Temp.",
-    align: "right",
-    render: (h) => (
-      <span className="font-mono text-sm">{h.temperatura.toFixed(1)}°C</span>
     ),
   },
   {
@@ -146,7 +137,7 @@ const hastesColumns: Column<Haste>[] = [
     align: "right",
     render: (h) => (
       <span className="text-xs text-muted-foreground">
-        {formatHour(h.ultimaLeitura)}
+        {h.ultimaLeitura ? formatHour(h.ultimaLeitura) : "--"}
       </span>
     ),
   },
@@ -154,6 +145,14 @@ const hastesColumns: Column<Haste>[] = [
 
 function DashboardPage() {
   const { data, loading } = useAsync(getDashboard, []);
+
+  const heatmapPoints = data?.hastes.map((h) => ({
+    id: h.id,
+    nome: h.nome,
+    x: h.coordenadaX,
+    y: h.coordenadaY,
+    value: Math.random() * 20 + 20, // temporário para teste
+  }));
 
   if (loading || !data) {
     return (
@@ -229,7 +228,10 @@ function DashboardPage() {
         bodyClassName="p-0"
       >
         <div className="p-5 pt-0">
-          <Heatmap3D height={380} />
+          <Heatmap3D 
+            points={heatmapPoints ?? []}
+            height={380}
+          />
         </div>
       </Panel>
 
@@ -252,9 +254,6 @@ function DashboardPage() {
               <li key={a.id} className="flex items-start gap-3 px-5 py-3">
                 <StatusBadge status={a.severidade} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {a.tipo} · {a.hasteNome}
-                  </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {a.mensagem}
                   </p>

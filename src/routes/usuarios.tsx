@@ -18,7 +18,7 @@ import type { Usuario, UserRole } from "@/types";
 export const Route = createFileRoute("/usuarios")({
   head: () => ({
     meta: [
-      { title: "Usuários · BioMonitor" },
+      { title: "Usuários" },
       { name: "description", content: "Gerenciamento de usuários e perfis do sistema." },
     ],
   }),

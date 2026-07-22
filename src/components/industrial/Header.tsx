@@ -24,7 +24,7 @@ export function Header({
       <div className="flex items-center gap-4 px-6 lg:px-8 py-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            <span>Leira 01 · Pátio Norte</span>
+            <span>Leira 01</span>
             <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
             <span className="capitalize">{fmt}</span>
           </div>

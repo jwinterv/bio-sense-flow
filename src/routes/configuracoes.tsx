@@ -23,38 +23,32 @@ import {
   updateHaste,
 } from "@/services/hastesService";
 import {
-  createSensor,
-  deleteSensor,
-  getLimites,
   getSensores,
-  updateLimites,
+  updateSensor,
 } from "@/services/sensoresService";
 import { getLeiras, updateLeira } from "@/services/leirasService";
 import type {
   EntityStatus,
   Haste,
   Leira,
-  Limites,
   Sensor,
-  SensorType,
 } from "@/types";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações · BioMonitor" },
+      { title: "Configurações" },
       { name: "description", content: "Administração de hastes, sensores, limites e leiras." },
     ],
   }),
   component: ConfiguracoesPage,
 });
 
-type Tab = "hastes" | "sensores" | "limites" | "leira";
+type Tab = "hastes" | "sensores" | "leira";
 
 const tabs: { id: Tab; label: string; icon: typeof Cpu }[] = [
   { id: "hastes", label: "Hastes", icon: Layers3 },
   { id: "sensores", label: "Sensores", icon: Cpu },
-  { id: "limites", label: "Limites", icon: SlidersHorizontal },
   { id: "leira", label: "Leira", icon: Ruler },
 ];
 
@@ -86,7 +80,6 @@ function ConfiguracoesPage() {
 
       {tab === "hastes" && <HastesTab />}
       {tab === "sensores" && <SensoresTab />}
-      {tab === "limites" && <LimitesTab />}
       {tab === "leira" && <LeiraTab />}
     </AppLayout>
   );
@@ -106,7 +99,6 @@ function HastesTab() {
 
   const cols: Column<Haste>[] = [
     { key: "nome", header: "Nome", render: (h) => <span className="font-medium">{h.nome}</span> },
-    { key: "id", header: "Identificação", render: (h) => <span className="font-mono text-xs">{h.identificacao}</span> },
     { key: "x", header: "X (m)", align: "right", render: (h) => h.coordenadaX.toFixed(2) },
     { key: "y", header: "Y (m)", align: "right", render: (h) => h.coordenadaY.toFixed(2) },
     { key: "status", header: "Status", render: (h) => <StatusBadge status={h.status} /> },
@@ -166,7 +158,6 @@ function HastesTab() {
           setCreating(false);
         }}
         title={editing ? `Editar ${editing.nome}` : "Nova haste"}
-        subtitle={editing?.identificacao}
       >
         <HasteForm
           initial={editing ?? undefined}
@@ -198,7 +189,6 @@ function HasteForm({
 }) {
   const [values, setValues] = useState({
     nome: initial?.nome ?? "",
-    identificacao: initial?.identificacao ?? "",
     coordenadaX: initial?.coordenadaX ?? 0,
     coordenadaY: initial?.coordenadaY ?? 0,
     status: (initial?.status ?? "online") as EntityStatus,
@@ -217,16 +207,6 @@ function HasteForm({
           required
           value={values.nome}
           onChange={(e) => setValues((v) => ({ ...v, nome: e.target.value }))}
-          className={inputCls}
-        />
-      </Field>
-      <Field label="Identificação">
-        <input
-          required
-          value={values.identificacao}
-          onChange={(e) =>
-            setValues((v) => ({ ...v, identificacao: e.target.value }))
-          }
           className={inputCls}
         />
       </Field>
@@ -286,35 +266,63 @@ function HasteForm({
 
 function SensoresTab() {
   const [sensores, setSensores] = useState<Sensor[] | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Sensor | null>(null);
 
   const reload = () => getSensores().then(setSensores);
+
   useEffect(() => {
     reload();
   }, []);
 
   const cols: Column<Sensor>[] = [
-    { key: "nome", header: "Nome", render: (s) => <span className="font-medium">{s.nome}</span> },
-    { key: "tipo", header: "Tipo", render: (s) => <span className="capitalize">{s.tipo}</span> },
-    { key: "haste", header: "Haste", render: (s) => <span className="font-mono text-xs">{s.hasteId}</span> },
-    { key: "un", header: "Unidade", render: (s) => s.unidade },
-    { key: "valor", header: "Valor atual", align: "right", render: (s) => <span className="font-mono">{s.valorAtual.toFixed(2)}</span> },
-    { key: "status", header: "Status", render: (s) => <StatusBadge status={s.status} /> },
     {
-      key: "del",
+      key: "sensor",
+      header: "Sensor",
+      render: (s) => (
+        <span className="font-medium">{s.sensor}</span>
+      ),
+    },
+    {
+      key: "tipo",
+      header: "Tipo",
+      render: (s) => (
+        <span className="capitalize">{s.tipo}</span>
+      ),
+    },
+    {
+      key: "unidade",
+      header: "Unidade",
+      render: (s) => s.unidade,
+    },
+    {
+      key: "operacao",
+      header: "Faixa ideal",
+      render: (s) => (
+        <span className="font-mono">
+          {s.operacaoMin} – {s.operacaoMax}
+        </span>
+      ),
+    },
+    {
+      key: "limiar",
+      header: "Faixa permitida",
+      render: (s) => (
+        <span className="font-mono">
+          {s.limiarInferior} – {s.limiarSuperior}
+        </span>
+      ),
+    },
+    {
+      key: "acoes",
       header: "",
       align: "right",
       render: (s) => (
         <button
-          onClick={async () => {
-            if (confirm(`Excluir ${s.nome}?`)) {
-              await deleteSensor(s.id);
-              reload();
-            }
-          }}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+          onClick={() => setEditing(s)}
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-primary"
+          aria-label="Editar"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Pencil className="h-3.5 w-3.5" />
         </button>
       ),
     },
@@ -324,26 +332,33 @@ function SensoresTab() {
     <>
       <Panel
         title="Sensores"
-        subtitle="Cada sensor pertence a uma haste"
-        action={
-          <button
-            onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            Adicionar sensor
-          </button>
-        }
+        subtitle="Consulte os sensores e configure seus limites de operação."
         bodyClassName="p-0"
       >
-        {!sensores ? <Loading /> : <DataTable columns={cols} data={sensores} rowKey={(s) => s.id} />}
+        {!sensores ? (
+          <Loading />
+        ) : (
+          <DataTable
+            columns={cols}
+            data={sensores}
+            rowKey={(s) => s.id.toString()}
+          />
+        )}
       </Panel>
 
-      <Drawer open={creating} onClose={() => setCreating(false)} title="Novo sensor">
+      <Drawer
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing ? `Editar ${editing.sensor}` : "Novo sensor"}
+      >
         <SensorForm
-          onSubmit={async (v) => {
-            await createSensor(v as Omit<Sensor, "id">);
-            setCreating(false);
+          initial={editing ?? undefined}
+          onSubmit={async (values) => {
+            if (editing) {
+              await updateSensor(editing.id, values);
+            }
+
+            setEditing(null);
             reload();
           }}
         />
@@ -352,122 +367,144 @@ function SensoresTab() {
   );
 }
 
-function SensorForm({ onSubmit }: { onSubmit: (v: Omit<Sensor, "id">) => Promise<void> }) {
-  const [v, setV] = useState<Omit<Sensor, "id">>({
-    hasteId: "haste-1",
-    nome: "",
-    tipo: "temperatura",
-    unidade: "°C",
-    status: "online",
-    valorAtual: 0,
-  });
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(v); }} className="space-y-4">
-      <Field label="Nome">
-        <input required value={v.nome} onChange={(e) => setV({ ...v, nome: e.target.value })} className={inputCls} />
-      </Field>
-      <Field label="Tipo">
-        <select value={v.tipo} onChange={(e) => setV({ ...v, tipo: e.target.value as SensorType })} className={inputCls}>
-          <option value="temperatura">Temperatura</option>
-          <option value="umidade">Umidade</option>
-          <option value="ph">pH</option>
-          <option value="npk">NPK</option>
-        </select>
-      </Field>
-      <Field label="Unidade">
-        <input required value={v.unidade} onChange={(e) => setV({ ...v, unidade: e.target.value })} className={inputCls} />
-      </Field>
-      <Field label="Haste">
-        <input required value={v.hasteId} onChange={(e) => setV({ ...v, hasteId: e.target.value })} className={inputCls} />
-      </Field>
-      <button className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-        Salvar
-      </button>
-    </form>
-  );
-}
-
-/* ------------- LIMITES ------------- */
-
-function LimitesTab() {
-  const [limites, setLimites] = useState<Limites | null>(null);
-  useEffect(() => {
-    getLimites().then(setLimites);
-  }, []);
-
-  if (!limites) return <Loading />;
-
-  return (
-    <Panel title="Limites operacionais" subtitle="Faixas usadas para gerar alertas automáticos">
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          await updateLimites(limites);
-          alert("Limites atualizados.");
-        }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4"
-      >
-        <LimitPair
-          label="Temperatura"
-          unit="°C"
-          min={limites.tempMin}
-          max={limites.tempMax}
-          onMin={(v) => setLimites({ ...limites, tempMin: v })}
-          onMax={(v) => setLimites({ ...limites, tempMax: v })}
-        />
-        <LimitPair
-          label="Umidade"
-          unit="%"
-          min={limites.umidadeMin}
-          max={limites.umidadeMax}
-          onMin={(v) => setLimites({ ...limites, umidadeMin: v })}
-          onMax={(v) => setLimites({ ...limites, umidadeMax: v })}
-        />
-        <LimitPair
-          label="pH"
-          unit=""
-          min={limites.phMin}
-          max={limites.phMax}
-          onMin={(v) => setLimites({ ...limites, phMin: v })}
-          onMax={(v) => setLimites({ ...limites, phMax: v })}
-        />
-        <div className="md:col-span-2 pt-2">
-          <button className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-            Salvar limites
-          </button>
-        </div>
-      </form>
-    </Panel>
-  );
-}
-
-function LimitPair({
-  label,
-  unit,
-  min,
-  max,
-  onMin,
-  onMax,
+function SensorForm({
+  initial,
+  onSubmit,
 }: {
-  label: string;
-  unit: string;
-  min: number;
-  max: number;
-  onMin: (v: number) => void;
-  onMax: (v: number) => void;
+  initial?: Sensor;
+  onSubmit: (
+    values: Omit<Sensor, "id" | "sensor" | "tipo" | "unidade">
+  ) => Promise<void>;
 }) {
+
+  const [values, setValues] = useState({
+    operacaoMin: 0,
+    operacaoMax: 0,
+    limiarInferior: 0,
+    limiarSuperior: 0,
+  });
+
+
+  useEffect(() => {
+    if (initial) {
+      setValues({
+        operacaoMin: initial.operacaoMin,
+        operacaoMax: initial.operacaoMax,
+        limiarInferior: initial.limiarInferior,
+        limiarSuperior: initial.limiarSuperior,
+      });
+    }
+  }, [initial]);
+
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="text-sm font-semibold text-foreground">{label}</p>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <Field label={`Mínimo (${unit || "un"})`}>
-          <input type="number" step="0.1" value={min} onChange={(e) => onMin(+e.target.value)} className={inputCls} />
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(values);
+      }}
+      className="space-y-4"
+    >
+      <Field label="Sensor">
+        <input
+          disabled
+          value={initial?.sensor ?? ""}
+          className={`${inputCls} opacity-60`}
+        />
+      </Field>
+
+      <Field label="Tipo">
+        <input
+          disabled
+          value={initial?.tipo ?? ""}
+          className={`${inputCls} opacity-60`}
+        />
+      </Field>
+
+      <Field label="Unidade">
+        <input
+          disabled
+          value={initial?.unidade ?? ""}
+          className={`${inputCls} opacity-60`}
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Operação mínima">
+          <input
+            type="number"
+            step="0.1"
+            value={values.operacaoMin}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                operacaoMin: Number(e.target.value),
+              }))
+            }
+            className={inputCls}
+          />
         </Field>
-        <Field label={`Máximo (${unit || "un"})`}>
-          <input type="number" step="0.1" value={max} onChange={(e) => onMax(+e.target.value)} className={inputCls} />
+
+        <Field label="Operação máxima">
+          <input
+            type="number"
+            step="0.1"
+            value={values.operacaoMax}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                operacaoMax: Number(e.target.value),
+              }))
+            }
+            className={inputCls}
+          />
         </Field>
       </div>
-    </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Limite inferior">
+          <input
+            type="number"
+            step="0.1"
+            value={values.limiarInferior}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                limiarInferior: Number(e.target.value),
+              }))
+            }
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label="Limite superior">
+          <input
+            type="number"
+            step="0.1"
+            value={values.limiarSuperior}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                limiarSuperior: Number(e.target.value),
+              }))
+            }
+            className={inputCls}
+          />
+        </Field>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Os limites configurados serão utilizados para monitoramento e geração de alertas.
+      </p>
+
+      <div className="pt-2">
+        <button
+          type="submit"
+          className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          Salvar
+        </button>
+      </div>
+    </form>
   );
 }
 

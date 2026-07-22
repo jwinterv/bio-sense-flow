@@ -73,13 +73,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "BioMonitor · Monitoramento de Bioconversão Industrial" },
+      { title: "Planta Piloto de Bioconversão" },
       {
         name: "description",
         content:
-          "Sistema SCADA para monitoramento em tempo real de leiras de bioconversão industrial.",
+          "Sistema de monitoramento em tempo real de leiras de bioconversão industrial.",
       },
-      { property: "og:title", content: "BioMonitor · SCADA de Bioconversão" },
+      { property: "og:title", content: "Planta Piloto de Bioconversão · Dashboard" },
       {
         property: "og:description",
         content:

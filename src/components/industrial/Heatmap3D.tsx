@@ -1,48 +1,166 @@
-import { Box, Layers } from "lucide-react";
-import { EmptyState } from "./Feedback";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+import { useMemo } from "react";
+import * as THREE from "three";
 
-interface HeatmapCell {
-  x: number;
-  y: number;
-  value: number;
-}
+import { HeatmapPoint } from "@/lib/heatmap/types";
+import { interpolateValue } from "@/lib/heatmap/interpolation";
+import { geometryToWorld , worldToThree } from "@/lib/heatmap/coordinates";
 
 interface Heatmap3DProps {
+  points: HeatmapPoint[];
   height?: number;
-  title?: string;
-  unit?: string;
-  values?: HeatmapCell[];
 }
 
-export function Heatmap3D({ height = 360, title, unit }: Heatmap3DProps) {
+const LEIRA = {
+  width: 4,
+  height: 3,
+};
+
+const GRID = {
+  x: 40,
+  y: 30,
+};
+
+export function Heatmap3D({
+  points,
+  height = 360,
+}: Heatmap3DProps) {
+
+  const geometry = useMemo(() => {
+    return new THREE.PlaneGeometry(
+      LEIRA.width,
+      LEIRA.height,
+      GRID.x,
+      GRID.y
+    );
+  }, []);
+
+
+  const positions = geometry.attributes.position;
+
+  console.log("Pontos recebidos:", points);
+
+  const heatmapValues = useMemo(() => {
+
+    const values: number[] = [];
+
+    for (let i = 0; i < positions.count; i++) {
+
+      const geometryX = positions.getX(i);
+      const geometryY = positions.getY(i);
+
+      const world = geometryToWorld(
+        geometryX,
+        geometryY,
+        LEIRA
+      );
+
+      const value = interpolateValue(
+        world.x,
+        world.y,
+        points
+      );
+
+      values.push(value);
+    }
+
+    return values;
+
+  }, [points, positions]);
+
+  console.log(
+    "Valores gerados:",
+    heatmapValues.slice(0,10)
+  );
+
   return (
     <div
-      className="relative w-full overflow-hidden rounded-lg border border-border bg-[radial-gradient(ellipse_at_top,theme(colors.primary/15%),transparent_60%),linear-gradient(180deg,var(--surface-elevated),var(--surface))]"
+      className="w-full overflow-hidden rounded-lg border border-border"
       style={{ height }}
     >
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-          maskImage:
-            "radial-gradient(ellipse at center, black 40%, transparent 80%)",
+      <Canvas
+        camera={{
+          position: [2, 5, 6],
+          fov: 45,
         }}
-      />
-      <div className="relative flex h-full items-center justify-center">
-        <EmptyState
-          icon={<Box className="h-6 w-6" />}
-          title={title ?? "Heatmap 3D"}
-          description={`Placeholder para visualização de ${title?.toLowerCase() ?? "heatmap"}. A seleção de variável permanece disponível para uso futuro.`}
-          action={
-            <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-              <Layers className="h-3.5 w-3.5" />
-              {unit ? `${unit} · placeholder` : "Placeholder"}
-            </div>
-          }
+      >
+
+        {/* Iluminação */}
+        <ambientLight intensity={0.8} />
+
+        <directionalLight
+          position={[5, 10, 5]}
+          intensity={1.5}
         />
-      </div>
+
+
+        {/* Grade da leira */}
+        <gridHelper
+          args={[
+            LEIRA.width,
+            GRID.x,
+            "#888888",
+            "#555555",
+          ]}
+          position={[
+            LEIRA.width / 2,
+            0,
+            LEIRA.height / 2,
+          ]}
+        />
+
+
+        {/* Superfície do heatmap */}
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[
+            LEIRA.width / 2,
+            0.001,
+            LEIRA.height / 2,
+          ]}
+        >
+
+          <primitive object={geometry} />
+
+          <meshStandardMaterial
+            color="#22c55e"
+            wireframe
+          />
+
+        </mesh>
+
+
+        {/* Sensores */}
+        {points.map((point) => (
+          <mesh
+            key={point.id}
+            position={[
+              point.x,
+              0.08,
+              point.y,
+            ]}
+          >
+
+            <sphereGeometry
+              args={[
+                0.08,
+                24,
+                24,
+              ]}
+            />
+
+            <meshStandardMaterial
+              color="#2563eb"
+            />
+
+          </mesh>
+        ))}
+
+
+        <OrbitControls />
+
+      </Canvas>
     </div>
   );
 }

@@ -9,88 +9,27 @@ import { DataTable, type Column } from "@/components/industrial/DataTable";
 import { Drawer } from "@/components/industrial/Drawer";
 import { Loading } from "@/components/industrial/Feedback";
 import { useAsync } from "@/hooks/useAsync";
-import { getMonitoramento } from "@/services/dashboardService";
-import type { Haste, MonitoramentoResumo } from "@/types";
+import { getHaste } from "@/services/monitoramentoService";
+import { getHastesMonitoramento } from "@/services/monitoramentoService";
+import type { Haste, HasteDetalhada } from "@/types";
+import type { HeatmapPoint } from "@/lib/heatmap/types";
 
 export const Route = createFileRoute("/monitoramento")({
   head: () => ({
     meta: [
-      { title: "Monitoramento · BioMonitor" },
+      { title: "Monitoramento" },
       { name: "description", content: "Detalhes da leira monitorada em tempo real." },
     ],
   }),
   component: MonitoramentoPage,
 });
 
-function buildSoilMetrics(data: MonitoramentoResumo) {
-  return [
-    {
-      key: "temperatura",
-      label: "Temperatura",
-      value: data.temperaturaMedia.toFixed(1),
-      unit: "°C",
-      tone: "primary" as const,
-      icon: <Thermometer className="h-4 w-4" />,
-    },
-    {
-      key: "umidade",
-      label: "Umidade",
-      value: data.umidadeMedia.toFixed(1),
-      unit: "%",
-      tone: "success" as const,
-      icon: <Droplets className="h-4 w-4" />,
-    },
-    {
-      key: "salinidade",
-      label: "Salinidade",
-      value: (1.8 + data.umidadeMedia / 100).toFixed(2),
-      unit: "g/L",
-      icon: <FlaskConical className="h-4 w-4" />,
-    },
-    {
-      key: "solidos",
-      label: "Sólidos dissolvidos",
-      value: Math.round(420 + data.temperaturaMedia * 11).toString(),
-      unit: "mg/L",
-      icon: <Sprout className="h-4 w-4" />,
-    },
-    {
-      key: "nitrogenio",
-      label: "Nitrogênio",
-      value: Math.round(44 + data.umidadeMedia / 2).toString(),
-      unit: "mg/L",
-      icon: <Sprout className="h-4 w-4" />,
-    },
-    {
-      key: "fosforo",
-      label: "Fósforo",
-      value: Math.round(18 + data.phMedio).toString(),
-      unit: "mg/L",
-      icon: <Sprout className="h-4 w-4" />,
-    },
-    {
-      key: "potassio",
-      label: "Potássio",
-      value: Math.round(230 + data.temperaturaMedia * 3).toString(),
-      unit: "mg/L",
-      icon: <Sprout className="h-4 w-4" />,
-    },
-    {
-      key: "condutividade",
-      label: "Condutividade",
-      value: Math.round(1180 + data.umidadeMedia * 7).toString(),
-      unit: "uS/cm",
-      icon: <FlaskConical className="h-4 w-4" />,
-    },
-  ];
-}
-
-function buildGasMetrics(data: MonitoramentoResumo) {
+function buildGasMetrics(gas?: HasteDetalhada["gas"]) {
   return [
     {
       key: "amonia",
       label: "Amônia",
-      value: Math.round(6 + data.temperaturaMedia / 2).toString(),
+      value: gas?.amonia !== null && gas?.amonia !== undefined ? gas.amonia.toFixed(1) : "--",
       unit: "ppm",
       tone: "warning" as const,
       icon: <FlaskConical className="h-4 w-4" />,
@@ -98,7 +37,7 @@ function buildGasMetrics(data: MonitoramentoResumo) {
     {
       key: "metano",
       label: "Metano",
-      value: Math.round(10 + data.umidadeMedia / 4).toString(),
+      value: gas?.metano !== null && gas?.metano !== undefined ? gas.metano.toFixed(1) : "--",
       unit: "ppm",
       tone: "destructive" as const,
       icon: <FlaskConical className="h-4 w-4" />,
@@ -106,195 +45,139 @@ function buildGasMetrics(data: MonitoramentoResumo) {
   ];
 }
 
-function buildHeatmapValues(variable: string, data: MonitoramentoResumo) {
-  const baseTemp = data.temperaturaMedia;
-  const baseUmidade = data.umidadeMedia;
-  const basePh = data.phMedio;
+function buildHeatmapPoints(
+  hastes: Haste[],
+  variable: string
+): HeatmapPoint[] {
 
-  switch (variable) {
-    case "umidade":
-      return [
-        { x: 1, y: 1, value: baseUmidade - 3 },
-        { x: 2, y: 1, value: baseUmidade + 2 },
-        { x: 3, y: 1, value: baseUmidade - 1 },
-        { x: 4, y: 1, value: baseUmidade + 4 },
-        { x: 1, y: 2, value: baseUmidade + 1 },
-        { x: 2, y: 2, value: baseUmidade - 2 },
-        { x: 3, y: 2, value: baseUmidade + 3 },
-        { x: 4, y: 2, value: baseUmidade - 4 },
-        { x: 1, y: 3, value: baseUmidade + 5 },
-        { x: 2, y: 3, value: baseUmidade + 2 },
-        { x: 3, y: 3, value: baseUmidade - 2 },
-        { x: 4, y: 3, value: baseUmidade + 1 },
-        { x: 1, y: 4, value: baseUmidade - 1 },
-        { x: 2, y: 4, value: baseUmidade + 3 },
-        { x: 3, y: 4, value: baseUmidade + 2 },
-        { x: 4, y: 4, value: baseUmidade - 3 },
-      ];
-    case "salinidade":
-      return [
-        { x: 1, y: 1, value: 1.7 },
-        { x: 2, y: 1, value: 1.9 },
-        { x: 3, y: 1, value: 2.1 },
-        { x: 4, y: 1, value: 2.0 },
-        { x: 1, y: 2, value: 1.8 },
-        { x: 2, y: 2, value: 2.3 },
-        { x: 3, y: 2, value: 1.9 },
-        { x: 4, y: 2, value: 2.4 },
-        { x: 1, y: 3, value: 2.2 },
-        { x: 2, y: 3, value: 2.1 },
-        { x: 3, y: 3, value: 2.0 },
-        { x: 4, y: 3, value: 2.3 },
-        { x: 1, y: 4, value: 1.9 },
-        { x: 2, y: 4, value: 2.2 },
-        { x: 3, y: 4, value: 2.0 },
-        { x: 4, y: 4, value: 1.8 },
-      ];
-    case "ph":
-      return [
-        { x: 1, y: 1, value: basePh - 0.3 },
-        { x: 2, y: 1, value: basePh + 0.2 },
-        { x: 3, y: 1, value: basePh + 0.1 },
-        { x: 4, y: 1, value: basePh - 0.2 },
-        { x: 1, y: 2, value: basePh + 0.3 },
-        { x: 2, y: 2, value: basePh - 0.1 },
-        { x: 3, y: 2, value: basePh + 0.2 },
-        { x: 4, y: 2, value: basePh },
-        { x: 1, y: 3, value: basePh + 0.1 },
-        { x: 2, y: 3, value: basePh - 0.2 },
-        { x: 3, y: 3, value: basePh + 0.3 },
-        { x: 4, y: 3, value: basePh },
-        { x: 1, y: 4, value: basePh - 0.1 },
-        { x: 2, y: 4, value: basePh + 0.2 },
-        { x: 3, y: 4, value: basePh },
-        { x: 4, y: 4, value: basePh - 0.3 },
-      ];
-    case "amonia":
-      return [
-        { x: 1, y: 1, value: 8 },
-        { x: 2, y: 1, value: 11 },
-        { x: 3, y: 1, value: 9 },
-        { x: 4, y: 1, value: 7 },
-        { x: 1, y: 2, value: 10 },
-        { x: 2, y: 2, value: 13 },
-        { x: 3, y: 2, value: 12 },
-        { x: 4, y: 2, value: 8 },
-        { x: 1, y: 3, value: 9 },
-        { x: 2, y: 3, value: 11 },
-        { x: 3, y: 3, value: 10 },
-        { x: 4, y: 3, value: 7 },
-        { x: 1, y: 4, value: 8 },
-        { x: 2, y: 4, value: 12 },
-        { x: 3, y: 4, value: 9 },
-        { x: 4, y: 4, value: 11 },
-      ];
-    case "metano":
-      return [
-        { x: 1, y: 1, value: 12 },
-        { x: 2, y: 1, value: 14 },
-        { x: 3, y: 1, value: 10 },
-        { x: 4, y: 1, value: 13 },
-        { x: 1, y: 2, value: 15 },
-        { x: 2, y: 2, value: 18 },
-        { x: 3, y: 2, value: 16 },
-        { x: 4, y: 2, value: 14 },
-        { x: 1, y: 3, value: 13 },
-        { x: 2, y: 3, value: 17 },
-        { x: 3, y: 3, value: 12 },
-        { x: 4, y: 3, value: 15 },
-        { x: 1, y: 4, value: 11 },
-        { x: 2, y: 4, value: 16 },
-        { x: 3, y: 4, value: 13 },
-        { x: 4, y: 4, value: 14 },
-      ];
+  return hastes.map((haste) => {
+
+    let value = 0;
+
+    switch (variable) {
     case "temperatura":
-    default:
-      return [
-        { x: 1, y: 1, value: baseTemp - 0.6 },
-        { x: 2, y: 1, value: baseTemp + 0.2 },
-        { x: 3, y: 1, value: baseTemp - 0.3 },
-        { x: 4, y: 1, value: baseTemp + 0.4 },
-        { x: 1, y: 2, value: baseTemp + 0.3 },
-        { x: 2, y: 2, value: baseTemp - 0.2 },
-        { x: 3, y: 2, value: baseTemp + 0.5 },
-        { x: 4, y: 2, value: baseTemp - 0.4 },
-        { x: 1, y: 3, value: baseTemp + 0.2 },
-        { x: 2, y: 3, value: baseTemp - 0.1 },
-        { x: 3, y: 3, value: baseTemp + 0.3 },
-        { x: 4, y: 3, value: baseTemp - 0.5 },
-        { x: 1, y: 4, value: baseTemp - 0.2 },
-        { x: 2, y: 4, value: baseTemp + 0.4 },
-        { x: 3, y: 4, value: baseTemp + 0.1 },
-        { x: 4, y: 4, value: baseTemp - 0.3 },
-      ];
-  }
-}
+      value = haste.solo.temperatura ?? 0;
+      break;
 
-function getHeatmapUnit(type: "solo" | "gasoso", variable: string) {
-  if (type === "solo") {
-    if (variable === "ph") return "pH";
-    if (variable === "umidade") return "%";
-    if (variable === "salinidade") return "g/L";
-    return "°C";
-  }
+    case "umidade":
+      value = haste.solo.umidade ?? 0;
+      break;
 
-  return "ppm";
+    case "salinidade":
+      value = haste.solo.salinidade ?? 0;
+      break;
+
+    case "ssd":
+      value = haste.solo.ssd ?? 0;
+      break;
+
+    case "nitrogenio":
+      value = haste.solo.nitrogenio ?? 0;
+      break;
+
+    case "fosforo":
+      value = haste.solo.fosforo ?? 0;
+      break;
+
+    case "potassio":
+      value = haste.solo.potassio ?? 0;
+      break;
+
+    case "condutividade":
+      value = haste.solo.condutividade ?? 0;
+      break;
+
+    case "ph":
+      value = haste.solo.ph ?? 0;
+      break;
+    }
+
+    return {
+      id: haste.id,
+      nome: haste.nome,
+
+      x: haste.coordenadaX,
+      y: haste.coordenadaY,
+
+      value,
+    };
+  });
 }
 
 function MonitoramentoPage() {
-  const { data, loading, reload } = useAsync(getMonitoramento, []);
-  const [selected, setSelected] = useState<Haste | null>(null);
+  const [selected, setSelected] = useState<HasteDetalhada | null>(null);
+  const handleSelect = async (h: Haste) => {
+    try {
+      const detalhe = await getHaste(Number(h.id), 1);
+      setSelected(detalhe);
+    } catch (error) {
+      console.error("Erro ao buscar detalhes da haste:", error);
+    }
+  };
   const [heatmapCount, setHeatmapCount] = useState<1 | 2>(1);
   const [singleHeatmapVariable, setSingleHeatmapVariable] = useState("temperatura");
   const [heatmapOneVariable, setHeatmapOneVariable] = useState("temperatura");
   const [heatmapTwoVariable, setHeatmapTwoVariable] = useState("amonia");
+  const [hasteSelecionada, setHasteSelecionada] = useState<string>("1");
+  const [sensorSelecionado, setSensorSelecionado] = useState<number>(1);
+
+  // Carrega a lista global de hastes do banco
+  const { data: hastesList, loading: loadingHastes } =
+    useAsync(getHastesMonitoramento, []);
+
+  // Carrega a telemetria detalhada da haste e sensor selecionados
+  const { data: haste, loading: loadingHaste, reload } = useAsync(
+    () => getHaste(Number(hasteSelecionada), sensorSelecionado),
+    [hasteSelecionada, sensorSelecionado]
+  );
+
+  const solo = haste?.solo;
+  const dispositivo = haste?.dispositivo;
+  const gas = haste?.gas;
 
   const columns: Column<Haste>[] = [
     {
       key: "nome",
       header: "Haste",
-      render: (h) => (
+      render: (h: Haste) => (
         <div>
           <p className="font-medium">{h.nome}</p>
-          <p className="text-xs text-muted-foreground">{h.identificacao}</p>
         </div>
       ),
     },
     {
       key: "coord",
       header: "Coord (X, Y)",
-      render: (h) => (
+      render: (h: Haste) => (
         <span className="font-mono text-xs text-muted-foreground">
-          {h.coordenadaX.toFixed(1)}, {h.coordenadaY.toFixed(1)}
+          {h.coordenadaX !== undefined && h.coordenadaX !== null
+            ? h.coordenadaX.toFixed(1)
+            : "--"}
+          ,{" "}
+          {h.coordenadaY !== undefined && h.coordenadaY !== null
+            ? h.coordenadaY.toFixed(1)
+            : "--"}
         </span>
-      ),
-    },
-    {
-      key: "temp",
-      header: "Temperatura",
-      align: "right",
-      render: (h) => (
-        <span className="font-mono">{h.temperatura.toFixed(1)}°C</span>
       ),
     },
     {
       key: "status",
       header: "Estado",
-      render: (h) => <StatusBadge status={h.status} />,
+      render: (h: Haste) => <StatusBadge status={h.status} />,
     },
     {
       key: "ultima",
       header: "Última leitura",
       align: "right",
-      render: (h) => (
+      render: (h: Haste) => (
         <span className="text-xs text-muted-foreground">
-          {new Date(h.ultimaLeitura).toLocaleString("pt-BR")}
+          {h.ultimaLeitura ? new Date(h.ultimaLeitura).toLocaleString("pt-BR") : "--"}
         </span>
       ),
     },
   ];
 
-  if (loading || !data) {
+  if (loadingHastes || loadingHaste || !haste) {
     return (
       <AppLayout title="Monitoramento">
         <Loading />
@@ -302,24 +185,100 @@ function MonitoramentoPage() {
     );
   }
 
-  const soilMetrics = buildSoilMetrics(data);
-  const gasMetrics = buildGasMetrics(data);
-  const soilHeatmapValues = buildHeatmapValues(heatmapOneVariable, data);
-  const gasHeatmapValues = buildHeatmapValues(heatmapTwoVariable, data);
-  const singleHeatmapValues = buildHeatmapValues(singleHeatmapVariable, data);
+  const soilMetrics = [
+    {
+      key: "temperatura",
+      label: "Temperatura",
+      value: solo?.temperatura !== null && solo?.temperatura !== undefined ? solo.temperatura.toFixed(1) : "--",
+      unit: "°C",
+      tone: "primary" as const,
+      icon: <Thermometer className="h-4 w-4" />,
+    },
+    {
+      key: "umidade",
+      label: "Umidade",
+      value: solo?.umidade !== null && solo?.umidade !== undefined ? solo.umidade.toFixed(1) : "--",
+      unit: "%",
+      tone: "success" as const,
+      icon: <Droplets className="h-4 w-4" />,
+    },
+    {
+      key: "salinidade",
+      label: "Salinidade",
+      value: solo?.salinidade !== null && solo?.salinidade !== undefined ? solo.salinidade.toFixed(1) : "--",
+      unit: "g/L",
+      icon: <FlaskConical className="h-4 w-4" />,
+    },
+    {
+      key: "solidos",
+      label: "Sólidos dissolvidos",
+      value: solo?.ssd !== null && solo?.ssd !== undefined ? solo.ssd.toFixed(1) : "--",
+      unit: "mg/L",
+      icon: <Sprout className="h-4 w-4" />,
+    },
+    {
+      key: "nitrogenio",
+      label: "Nitrogênio",
+      value: solo?.nitrogenio !== null && solo?.nitrogenio !== undefined ? solo.nitrogenio.toFixed(1) : "--",
+      unit: "mg/L",
+      icon: <Sprout className="h-4 w-4" />,
+    },
+    {
+      key: "fosforo",
+      label: "Fósforo",
+      value: solo?.fosforo !== null && solo?.fosforo !== undefined ? solo.fosforo.toFixed(1) : "--",
+      unit: "mg/L",
+      icon: <Sprout className="h-4 w-4" />,
+    },
+    {
+      key: "potassio",
+      label: "Potássio",
+      value: solo?.potassio !== null && solo?.potassio !== undefined ? solo.potassio.toFixed(1) : "--",
+      unit: "mg/L",
+      icon: <Sprout className="h-4 w-4" />,
+    },
+    {
+      key: "condutividade",
+      label: "Condutividade",
+      value: solo?.condutividade !== null && solo?.condutividade !== undefined ? solo.condutividade.toFixed(1) : "--",
+      unit: "uS/cm",
+      icon: <FlaskConical className="h-4 w-4" />,
+    },
+  ];
+
+  const gasMetrics = buildGasMetrics(gas);
+
+  const singleHeatmapPoints =
+    buildHeatmapPoints(
+      hastesList ?? [],
+      singleHeatmapVariable
+    );
+
+  const heatmapOnePoints =
+    buildHeatmapPoints(
+      hastesList ?? [],
+      heatmapOneVariable
+    );
+
+  const heatmapTwoPoints =
+    buildHeatmapPoints(
+      hastesList ?? [],
+      heatmapTwoVariable
+    );
+
   const deviceMetrics = [
     {
-      key: "inclinação",
+      key: "inclinacao",
       label: "Inclinação da haste",
-      value: "4.2",
+      value: dispositivo?.inclinacao !== null && dispositivo?.inclinacao !== undefined ? dispositivo.inclinacao.toFixed(1) : "--",
       unit: "°",
-      tone: "warning" as const,
+      tone: dispositivo?.inclinacao !== null && dispositivo?.inclinacao !== undefined && dispositivo.inclinacao > 5 ? "warning" as const : "default" as const,
       icon: <Gauge className="h-4 w-4" />,
     },
     {
       key: "tensao",
       label: "Tensão",
-      value: "12.4",
+      value: dispositivo?.tensao !== null && dispositivo?.tensao !== undefined ? dispositivo.tensao.toFixed(1) : "--",
       unit: "V",
       tone: "success" as const,
       icon: <BatteryCharging className="h-4 w-4" />,
@@ -327,7 +286,7 @@ function MonitoramentoPage() {
     {
       key: "placa",
       label: "Temperatura da placa",
-      value: "41.8",
+      value: dispositivo?.temperatura !== null && dispositivo?.temperatura !== undefined ? dispositivo.temperatura.toFixed(1) : "--",
       unit: "°C",
       tone: "primary" as const,
       icon: <Thermometer className="h-4 w-4" />,
@@ -335,25 +294,29 @@ function MonitoramentoPage() {
     {
       key: "corrente",
       label: "Corrente",
-      value: "18.6",
+      value: dispositivo?.corrente !== null && dispositivo?.corrente !== undefined ? dispositivo.corrente.toFixed(1) : "--",
       unit: "mA",
       tone: "default" as const,
       icon: <Zap className="h-4 w-4" />,
     },
   ];
-  const heatmapOptions = [
-    { value: "temperatura", label: "Temperatura" },
-    { value: "umidade", label: "Umidade" },
-    { value: "salinidade", label: "Salinidade" },
-    { value: "ph", label: "pH" },
-    { value: "amonia", label: "Amônia" },
-    { value: "metano", label: "Metano" },
-  ];
+
+const heatmapOptions = [
+  { value: "temperatura", label: "Temperatura" },
+  { value: "umidade", label: "Umidade" },
+  { value: "salinidade", label: "Salinidade" },
+  { value: "ssd", label: "Sólidos Dissolvidos" },
+  { value: "nitrogenio", label: "Nitrogênio" },
+  { value: "fosforo", label: "Fósforo" },
+  { value: "potassio", label: "Potássio" },
+  { value: "condutividade", label: "Condutividade" },
+  { value: "ph", label: "pH" },
+];
 
   return (
     <AppLayout
       title="Monitoramento"
-      subtitle={`${data.leira.nome} · atualizado ${new Date(data.ultimaAtualizacao).toLocaleTimeString("pt-BR")}`}
+      subtitle={`${haste.nome} (${haste.localizacao}) · atualizado ${solo?.timestamp ? new Date(solo.timestamp).toLocaleTimeString("pt-BR") : new Date().toLocaleTimeString("pt-BR")}`}
       headerAction={
         <button
           onClick={reload}
@@ -364,34 +327,36 @@ function MonitoramentoPage() {
         </button>
       }
     >
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Temp. média"
-          value={data.temperaturaMedia}
-          unit="°C"
-          tone="primary"
-          icon={<Thermometer className="h-4 w-4" />}
-        />
-        <StatCard
-          label="Umidade"
-          value={data.umidadeMedia}
-          unit="%"
-          tone="success"
-          icon={<Droplets className="h-4 w-4" />}
-        />
-        <StatCard
-          label="pH"
-          value={data.phMedio}
-          icon={<FlaskConical className="h-4 w-4" />}
-        />
-        <StatCard
-          label="NPK"
-          value={data.npkMedio}
-          unit="pts"
-          tone="success"
-          icon={<Sprout className="h-4 w-4" />}
-        />
-      </div>
+      <Panel title="Filtros">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Haste</label>
+            <select
+              value={hasteSelecionada}
+              onChange={(e) => setHasteSelecionada(e.target.value)}
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+            >
+              {hastesList?.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Sensor NPK</label>
+            <select
+              value={sensorSelecionado}
+              onChange={(e) => setSensorSelecionado(Number(e.target.value))}
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+            >
+              <option value={1}>Sensor 1 (Superior)</option>
+              <option value={2}>Sensor 2 (Inferior)</option>
+            </select>
+          </div>
+        </div>
+      </Panel>
 
       <div className="mt-4 space-y-4">
         <Panel title="Sensores do solo" subtitle="Variáveis principais da camada de cultivo">
@@ -415,12 +380,14 @@ function MonitoramentoPage() {
                 </p>
                 <p className="mt-1 text-sm text-foreground">Indicador de alcalinidade e equilíbrio nutricional</p>
               </div>
-              <span className="text-xl font-semibold text-primary">{data.phMedio.toFixed(1)}</span>
+              <span className="text-xl font-semibold text-primary">
+                {solo?.ph !== null && solo?.ph !== undefined ? solo.ph.toFixed(1) : "--"}
+              </span>
             </div>
             <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-border/70">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-primary to-success"
-                style={{ width: `${Math.min(100, Math.max(10, ((data.phMedio - 4) / 6) * 100))}%` }}
+                style={{ width: `${Math.min(100, Math.max(10, (((solo?.ph ?? 7) - 4) / 6) * 100))}%` }}
               />
             </div>
           </div>
@@ -509,12 +476,10 @@ function MonitoramentoPage() {
             title="Heatmap"
             subtitle="Selecione a variável para visualizar"
           >
-            <Heatmap3D
-              title="Visualização"
-              unit={getHeatmapUnit("solo", singleHeatmapVariable)}
-              values={singleHeatmapValues}
-              height={320}
-            />
+          <Heatmap3D
+            points={singleHeatmapPoints}
+            height={320}
+          />
           </Panel>
         </div>
       ) : (
@@ -524,9 +489,7 @@ function MonitoramentoPage() {
             subtitle="Variável selecionada"
           >
             <Heatmap3D
-              title="Visualização 1"
-              unit={getHeatmapUnit("solo", heatmapOneVariable)}
-              values={soilHeatmapValues}
+              points={heatmapOnePoints}
               height={320}
             />
           </Panel>
@@ -536,9 +499,7 @@ function MonitoramentoPage() {
             subtitle="Variável selecionada"
           >
             <Heatmap3D
-              title="Visualização 2"
-              unit={getHeatmapUnit("gasoso", heatmapTwoVariable)}
-              values={gasHeatmapValues}
+              points={heatmapTwoPoints}
               height={320}
             />
           </Panel>
@@ -567,9 +528,9 @@ function MonitoramentoPage() {
       >
         <DataTable
           columns={columns}
-          data={data.hastes}
+          data={hastesList || []}
           rowKey={(h) => h.id}
-          onRowClick={setSelected}
+          onRowClick={handleSelect}
         />
       </Panel>
 
@@ -577,7 +538,6 @@ function MonitoramentoPage() {
         open={!!selected}
         onClose={() => setSelected(null)}
         title={selected?.nome}
-        subtitle={selected?.identificacao}
         width="max-w-lg"
       >
         {selected && (
@@ -585,14 +545,14 @@ function MonitoramentoPage() {
             <div className="grid grid-cols-2 gap-3">
               <StatCard
                 label="Temperatura"
-                value={selected.temperatura.toFixed(1)}
+                value={selected.solo.temperatura !== undefined && selected.solo.temperatura !== null ? selected.solo.temperatura.toFixed(1) : "--"}
                 unit="°C"
                 tone="primary"
                 icon={<Thermometer className="h-4 w-4" />}
               />
               <StatCard
                 label="Estado"
-                value={<StatusBadge status={selected.status} />}
+                value={<StatusBadge status={selected.dispositivo.status} />}
               />
             </div>
             <div>
@@ -615,7 +575,7 @@ function MonitoramentoPage() {
                 Última leitura
               </p>
               <p className="mt-1 text-sm text-foreground">
-                {new Date(selected.ultimaLeitura).toLocaleString("pt-BR")}
+                {selected.solo.timestamp ? new Date(selected.solo.timestamp).toLocaleString("pt-BR") : "--"}
               </p>
             </div>
           </div>

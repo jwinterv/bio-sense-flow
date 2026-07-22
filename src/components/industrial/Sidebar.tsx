@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Settings,
   Users,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const items = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/monitoramento", label: "Monitoramento", icon: Activity },
   { to: "/historico", label: "Histórico", icon: History },
+  { to: "/relatorios", label: "Relatórios", icon: FileText },
   { to: "/alertas", label: "Alertas", icon: Bell },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
   { to: "/usuarios", label: "Usuários", icon: Users },
@@ -31,10 +33,10 @@ export function Sidebar() {
         </div>
         <div>
           <p className="font-display text-sm font-semibold text-sidebar-foreground">
-            BioMonitor
+            Planta Piloto de Bioconversão
           </p>
           <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-            SCADA · v1.0
+            CBR Ambiental
           </p>
         </div>
       </div>

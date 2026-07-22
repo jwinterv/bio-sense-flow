@@ -145,7 +145,8 @@ def get_hastes_monitoramento():
             nome,
             coordenada_x,
             coordenada_y
-        FROM hastes;
+        FROM hastes
+        ORDER BY id_haste;
     """)
 
     hastes = cursor.fetchall()
@@ -156,10 +157,17 @@ def get_hastes_monitoramento():
 
         id_haste = h[0]
 
-        # Último status do dispositivo
+        # ==========================
+        # Último estado do dispositivo
+        # ==========================
+
         cursor.execute("""
             SELECT
                 status,
+                temperatura_disp,
+                tensao,
+                corrente,
+                inclinacao,
                 timestamp
             FROM dispositivos
             WHERE id_haste = %s
@@ -169,11 +177,21 @@ def get_hastes_monitoramento():
 
         dispositivo = cursor.fetchone()
 
+        # ==========================
+        # Última leitura NPK
+        # ==========================
 
-        # Última temperatura do solo
         cursor.execute("""
             SELECT
                 temperatura,
+                umidade,
+                salinidade,
+                ssd,
+                nitrogenio,
+                fosforo,
+                potassio,
+                condutividade,
+                ph,
                 timestamp
             FROM leituras_npk
             WHERE id_haste = %s
@@ -183,33 +201,68 @@ def get_hastes_monitoramento():
 
         npk = cursor.fetchone()
 
+        # ==========================
+        # Última leitura de gás
+        # ==========================
+
+        cursor.execute("""
+            SELECT
+                metano,
+                amonia,
+                timestamp
+            FROM leituras_gas
+            WHERE id_haste = %s
+            ORDER BY timestamp DESC
+            LIMIT 1;
+        """, (id_haste,))
+
+        gas = cursor.fetchone()
 
         resultado.append({
+
             "id": str(id_haste),
             "nome": h[1],
 
             "coordenadaX": float(h[2]),
             "coordenadaY": float(h[3]),
 
-            "temperatura": (
-                float(npk[0])
-                if npk and npk[0] is not None
-                else None
-            ),
+            "dispositivo": {
+                "status": status_map.get(dispositivo[0]) if dispositivo else "offline",
+                "temperatura": float(dispositivo[1]) if dispositivo and dispositivo[1] is not None else None,
+                "tensao": float(dispositivo[2]) if dispositivo and dispositivo[2] is not None else None,
+                "corrente": float(dispositivo[3]) if dispositivo and dispositivo[3] is not None else None,
+                "inclinacao": float(dispositivo[4]) if dispositivo and dispositivo[4] is not None else None,
+                "timestamp": dispositivo[5].isoformat() if dispositivo else None,
+            },
 
-            "status": (
-                status_map.get(dispositivo[0])
-                if dispositivo
-                else "offline"
-            ),
+            "solo": {
+                "temperatura": float(npk[0]) if npk and npk[0] is not None else None,
+                "umidade": float(npk[1]) if npk and npk[1] is not None else None,
+                "salinidade": float(npk[2]) if npk and npk[2] is not None else None,
+                "ssd": float(npk[3]) if npk and npk[3] is not None else None,
+                "nitrogenio": float(npk[4]) if npk and npk[4] is not None else None,
+                "fosforo": float(npk[5]) if npk and npk[5] is not None else None,
+                "potassio": float(npk[6]) if npk and npk[6] is not None else None,
+                "condutividade": float(npk[7]) if npk and npk[7] is not None else None,
+                "ph": float(npk[8]) if npk and npk[8] is not None else None,
+                "timestamp": npk[9].isoformat() if npk else None,
+            },
+
+            "gas": {
+                "metano": float(gas[0]) if gas and gas[0] is not None else None,
+                "amonia": float(gas[1]) if gas and gas[1] is not None else None,
+                "timestamp": gas[2].isoformat() if gas else None,
+            },
+
+            "status": status_map.get(dispositivo[0]) if dispositivo else "offline",
 
             "ultimaLeitura": (
-                dispositivo[1].isoformat()
+                dispositivo[5].isoformat()
                 if dispositivo
                 else None
             )
-        })
 
+        })
 
     cursor.close()
     conn.close()
