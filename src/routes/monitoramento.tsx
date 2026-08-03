@@ -11,8 +11,9 @@ import { Loading } from "@/components/industrial/Feedback";
 import { useAsync } from "@/hooks/useAsync";
 import { getHaste } from "@/services/monitoramentoService";
 import { getHastesMonitoramento } from "@/services/monitoramentoService";
-import type { Haste, HasteDetalhada } from "@/types";
-import type { HeatmapPoint } from "@/lib/heatmap/types";
+import { getLeiras } from "@/services/leirasService";
+import type { Haste, HasteDetalhada, LeituraSolo } from "@/types";
+import type { HeatmapLayers } from "@/lib/heatmap/types";
 
 export const Route = createFileRoute("/monitoramento")({
   head: () => ({
@@ -48,63 +49,72 @@ function buildGasMetrics(gas?: HasteDetalhada["gas"]) {
 function buildHeatmapPoints(
   hastes: Haste[],
   variable: string
-): HeatmapPoint[] {
-
-  return hastes.map((haste) => {
-
-    let value = 0;
+): HeatmapLayers {
+  const valueFor = (solo: LeituraSolo) => {
+    let value: number | null = null;
 
     switch (variable) {
     case "temperatura":
-      value = haste.solo.temperatura ?? 0;
+      value = solo.temperatura;
       break;
 
     case "umidade":
-      value = haste.solo.umidade ?? 0;
+      value = solo.umidade;
       break;
 
     case "salinidade":
-      value = haste.solo.salinidade ?? 0;
+      value = solo.salinidade;
       break;
 
     case "ssd":
-      value = haste.solo.ssd ?? 0;
+      value = solo.ssd;
       break;
 
     case "nitrogenio":
-      value = haste.solo.nitrogenio ?? 0;
+      value = solo.nitrogenio;
       break;
 
     case "fosforo":
-      value = haste.solo.fosforo ?? 0;
+      value = solo.fosforo;
       break;
 
     case "potassio":
-      value = haste.solo.potassio ?? 0;
+      value = solo.potassio;
       break;
 
     case "condutividade":
-      value = haste.solo.condutividade ?? 0;
+      value = solo.condutividade;
       break;
 
     case "ph":
-      value = haste.solo.ph ?? 0;
+      value = solo.ph;
       break;
     }
 
-    return {
+    return value;
+  };
+
+  const pointsFor = (layer: "superior" | "inferior") => hastes.flatMap((haste) => {
+    const solo = layer === "superior" ? haste.soloSuperior : haste.soloInferior;
+    const value = valueFor(solo);
+
+    return value === null || value === undefined ? [] : [{
       id: haste.id,
       nome: haste.nome,
-
       x: haste.coordenadaX,
       y: haste.coordenadaY,
-
       value,
-    };
+    }];
   });
+
+  return { superior: pointsFor("superior"), inferior: pointsFor("inferior") };
 }
 
 function MonitoramentoPage() {
+  const { data: leiras } = useAsync(getLeiras, []);
+  const heatmapDimensions = leiras?.[0]
+    ? { width: leiras[0].largura, height: leiras[0].comprimento }
+    : undefined;
   const [selected, setSelected] = useState<HasteDetalhada | null>(null);
   const handleSelect = async (h: Haste) => {
     try {
@@ -316,7 +326,7 @@ const heatmapOptions = [
   return (
     <AppLayout
       title="Monitoramento"
-      subtitle={`${haste.nome} (${haste.localizacao}) · atualizado ${solo?.timestamp ? new Date(solo.timestamp).toLocaleTimeString("pt-BR") : new Date().toLocaleTimeString("pt-BR")}`}
+      subtitle={`${haste.nome} · atualizado ${solo?.timestamp ? new Date(solo.timestamp).toLocaleTimeString("pt-BR") : new Date().toLocaleTimeString("pt-BR")}`}
       headerAction={
         <button
           onClick={reload}
@@ -477,7 +487,8 @@ const heatmapOptions = [
             subtitle="Selecione a variável para visualizar"
           >
           <Heatmap3D
-            points={singleHeatmapPoints}
+            layers={singleHeatmapPoints}
+            dimensions={heatmapDimensions}
             height={320}
           />
           </Panel>
@@ -489,7 +500,8 @@ const heatmapOptions = [
             subtitle="Variável selecionada"
           >
             <Heatmap3D
-              points={heatmapOnePoints}
+              layers={heatmapOnePoints}
+              dimensions={heatmapDimensions}
               height={320}
             />
           </Panel>
@@ -499,7 +511,8 @@ const heatmapOptions = [
             subtitle="Variável selecionada"
           >
             <Heatmap3D
-              points={heatmapTwoPoints}
+              layers={heatmapTwoPoints}
+              dimensions={heatmapDimensions}
               height={320}
             />
           </Panel>

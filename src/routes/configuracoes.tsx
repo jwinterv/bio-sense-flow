@@ -5,6 +5,7 @@ import {
   Layers3,
   Pencil,
   Plus,
+  Radio,
   Ruler,
   SlidersHorizontal,
   Trash2,
@@ -27,6 +28,12 @@ import {
   updateSensor,
 } from "@/services/sensoresService";
 import { getLeiras, updateLeira } from "@/services/leirasService";
+import {
+  getConfiguracaoAquisicao,
+  solicitarLeituraManual,
+  updateConfiguracaoAquisicao,
+  type ConfiguracaoAquisicao,
+} from "@/services/aquisicaoService";
 import type {
   EntityStatus,
   Haste,
@@ -44,12 +51,13 @@ export const Route = createFileRoute("/configuracoes")({
   component: ConfiguracoesPage,
 });
 
-type Tab = "hastes" | "sensores" | "leira";
+type Tab = "hastes" | "sensores" | "leira" | "aquisicao";
 
 const tabs: { id: Tab; label: string; icon: typeof Cpu }[] = [
   { id: "hastes", label: "Hastes", icon: Layers3 },
   { id: "sensores", label: "Sensores", icon: Cpu },
   { id: "leira", label: "Leira", icon: Ruler },
+  { id: "aquisicao", label: "Aquisição", icon: Radio },
 ];
 
 function ConfiguracoesPage() {
@@ -81,6 +89,7 @@ function ConfiguracoesPage() {
       {tab === "hastes" && <HastesTab />}
       {tab === "sensores" && <SensoresTab />}
       {tab === "leira" && <LeiraTab />}
+      {tab === "aquisicao" && <AquisicaoTab />}
     </AppLayout>
   );
 }
@@ -193,6 +202,15 @@ function HasteForm({
     coordenadaY: initial?.coordenadaY ?? 0,
     status: (initial?.status ?? "online") as EntityStatus,
   });
+
+  useEffect(() => {
+    setValues({
+      nome: initial?.nome ?? "",
+      coordenadaX: initial?.coordenadaX ?? 0,
+      coordenadaY: initial?.coordenadaY ?? 0,
+      status: (initial?.status ?? "online") as EntityStatus,
+    });
+  }, [initial]);
 
   return (
     <form
@@ -551,6 +569,98 @@ function LeiraTab() {
         </div>
       </form>
     </Panel>
+  );
+}
+
+/* ------------- AQUISICAO ------------- */
+
+function AquisicaoTab() {
+  const [configuracao, setConfiguracao] = useState<ConfiguracaoAquisicao | null>(null);
+  const [intervaloMinutos, setIntervaloMinutos] = useState(60);
+  const [saving, setSaving] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    getConfiguracaoAquisicao().then((data) => {
+      setConfiguracao(data);
+      setIntervaloMinutos(data.intervaloMinutos);
+    });
+  }, []);
+
+  if (!configuracao) return <Loading />;
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      <Panel title="Frequência de amostragem" subtitle="Define o intervalo entre as leituras automáticas das hastes.">
+        <form
+          className="space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setSaving(true);
+            setMessage(null);
+            try {
+              const updated = await updateConfiguracaoAquisicao(intervaloMinutos);
+              setConfiguracao(updated);
+              setMessage("Intervalo salvo. Ele será aplicado ao coletor quando o Raspberry Pi estiver integrado.");
+            } catch {
+              setMessage("Não foi possível salvar o intervalo. Verifique a conexão com a API.");
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          <Field label="Intervalo entre leituras (minutos)">
+            <input
+              type="number"
+              min="1"
+              max="1440"
+              required
+              value={intervaloMinutos}
+              onChange={(event) => setIntervaloMinutos(Number(event.target.value))}
+              className={inputCls}
+            />
+          </Field>
+          <p className="text-xs text-muted-foreground">Padrão: 60 minutos (1 hora). Valores permitidos: 1 a 1.440 minutos.</p>
+          <button disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+            {saving ? "Salvando..." : "Salvar intervalo"}
+          </button>
+        </form>
+      </Panel>
+
+      <Panel title="Leitura sob demanda" subtitle="Solicita uma coleta imediata ao equipamento instalado na leira.">
+        <div className="space-y-4">
+          <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">
+            Raspberry Pi: <span className="font-medium">integração pendente</span>. O comando será registrado, mas ainda não aciona o hardware.
+          </div>
+          <button
+            type="button"
+            disabled={requesting}
+            onClick={async () => {
+              setRequesting(true);
+              setMessage(null);
+              try {
+                const response = await solicitarLeituraManual();
+                setConfiguracao((current) => current ? { ...current, ultimaSolicitacaoManual: response.solicitadaEm } : current);
+                setMessage(response.mensagem);
+              } catch {
+                setMessage("Não foi possível registrar a solicitação. Verifique a conexão com a API.");
+              } finally {
+                setRequesting(false);
+              }
+            }}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {requesting ? "Solicitando..." : "Forçar leitura agora"}
+          </button>
+          {configuracao.ultimaSolicitacaoManual && (
+            <p className="text-xs text-muted-foreground">Última solicitação: {new Date(configuracao.ultimaSolicitacaoManual).toLocaleString("pt-BR")}</p>
+          )}
+        </div>
+      </Panel>
+
+      {message && <p className="xl:col-span-2 rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">{message}</p>}
+    </div>
   );
 }
 

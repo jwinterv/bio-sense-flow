@@ -3,6 +3,19 @@ export type Severity = "baixa" | "media" | "alta" | "critica";
 export type AlertStatus = "ativo" | "reconhecido" | "resolvido";
 export type EntityStatus = "online" | "offline" | "manutencao";
 
+export interface LeituraSolo {
+  temperatura: number | null;
+  umidade: number | null;
+  salinidade: number | null;
+  ssd: number | null;
+  nitrogenio: number | null;
+  fosforo: number | null;
+  potassio: number | null;
+  condutividade: number | null;
+  ph: number | null;
+  timestamp: string | null;
+}
+
 export interface Leira {
   id: number;
   nome: string;
@@ -27,18 +40,9 @@ export interface Haste {
     timestamp: string | null;
   };
 
-  solo: {
-    temperatura: number | null;
-    umidade: number | null;
-    salinidade: number | null;
-    ssd: number | null;
-    nitrogenio: number | null;
-    fosforo: number | null;
-    potassio: number | null;
-    condutividade: number | null;
-    ph: number | null;
-    timestamp: string | null;
-  };
+  solo: LeituraSolo;
+  soloSuperior: LeituraSolo;
+  soloInferior: LeituraSolo;
 
   gas: {
     metano: number | null;
@@ -68,18 +72,7 @@ export interface HasteDetalhada {
     timestamp: string | null;
   };
 
-  solo: {
-    temperatura: number | null;
-    umidade: number | null;
-    salinidade: number | null;
-    ssd: number | null;
-    nitrogenio: number | null;
-    fosforo: number | null;
-    potassio: number | null;
-    condutividade: number | null;
-    ph: number | null;
-    timestamp: string | null;
-  };
+  solo: LeituraSolo;
 
   gas: {
     metano: number | null;

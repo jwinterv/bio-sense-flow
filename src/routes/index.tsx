@@ -26,6 +26,7 @@ import { Loading } from "@/components/industrial/Feedback";
 import { DataTable, type Column } from "@/components/industrial/DataTable";
 import { useAsync } from "@/hooks/useAsync";
 import { getDashboard } from "@/services/dashboardService";
+import { getLeiras } from "@/services/leirasService";
 import type { Alerta, Haste, SeriePonto } from "@/types";
 
 export const Route = createFileRoute("/")({
@@ -145,14 +146,19 @@ const hastesColumns: Column<Haste>[] = [
 
 function DashboardPage() {
   const { data, loading } = useAsync(getDashboard, []);
+  const { data: leiras } = useAsync(getLeiras, []);
+  const heatmapDimensions = leiras?.[0]
+    ? { width: leiras[0].largura, height: leiras[0].comprimento }
+    : undefined;
 
-  const heatmapPoints = data?.hastes.map((h) => ({
-    id: h.id,
-    nome: h.nome,
-    x: h.coordenadaX,
-    y: h.coordenadaY,
-    value: Math.random() * 20 + 20, // temporário para teste
-  }));
+  const heatmapLayers = {
+    superior: data?.hastes.flatMap((h) => h.soloSuperior.temperatura === null ? [] : [{
+      id: h.id, nome: h.nome, x: h.coordenadaX, y: h.coordenadaY, value: h.soloSuperior.temperatura,
+    }]) ?? [],
+    inferior: data?.hastes.flatMap((h) => h.soloInferior.temperatura === null ? [] : [{
+      id: h.id, nome: h.nome, x: h.coordenadaX, y: h.coordenadaY, value: h.soloInferior.temperatura,
+    }]) ?? [],
+  };
 
   if (loading || !data) {
     return (
@@ -175,7 +181,6 @@ function DashboardPage() {
           icon={<Thermometer className="h-4 w-4" />}
           tone="primary"
           trend="up"
-          trendLabel="+0.4°C nas últimas 2h"
         />
         <StatCard
           label="Temperatura máxima"
@@ -192,7 +197,6 @@ function DashboardPage() {
           icon={<Droplets className="h-4 w-4" />}
           tone="success"
           trend="flat"
-          trendLabel="Dentro da faixa ideal"
         />
         <StatCard
           label="Alertas ativos"
@@ -229,7 +233,8 @@ function DashboardPage() {
       >
         <div className="p-5 pt-0">
           <Heatmap3D 
-            points={heatmapPoints ?? []}
+            layers={heatmapLayers}
+            dimensions={heatmapDimensions}
             height={380}
           />
         </div>

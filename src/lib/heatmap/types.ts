@@ -12,3 +12,8 @@ export interface HeatmapDimensions {
   width: number;
   height: number;
 }
+
+export interface HeatmapLayers {
+  superior: HeatmapPoint[];
+  inferior: HeatmapPoint[];
+}

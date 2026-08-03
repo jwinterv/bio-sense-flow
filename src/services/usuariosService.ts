@@ -1,24 +1,15 @@
-import { mockDelay } from "./api";
-import { mockUsuarios } from "./mockData";
+import { api } from "./api";
 import type { Usuario } from "@/types";
 
-let usuarios = [...mockUsuarios];
+export type UsuarioInput = Omit<Usuario, "id" | "ultimoAcesso"> & { senha?: string };
 
-export const getUsuarios = () => mockDelay(usuarios);
-export const createUsuario = (u: Omit<Usuario, "id" | "ultimoAcesso">) => {
-  const novo: Usuario = {
-    ...u,
-    id: `u-${Date.now()}`,
-    ultimoAcesso: new Date().toISOString(),
-  };
-  usuarios = [...usuarios, novo];
-  return mockDelay(novo);
-};
-export const updateUsuario = (id: string, u: Partial<Usuario>) => {
-  usuarios = usuarios.map((x) => (x.id === id ? { ...x, ...u } : x));
-  return mockDelay(usuarios.find((x) => x.id === id)!);
-};
-export const deleteUsuario = (id: string) => {
-  usuarios = usuarios.filter((x) => x.id !== id);
-  return mockDelay({ ok: true });
-};
+export const getUsuarios = () => api.get<Usuario[]>("/usuarios");
+
+export const createUsuario = (data: UsuarioInput & { senha: string }) =>
+  api.post<Usuario>("/usuarios", data);
+
+export const updateUsuario = (id: string, data: Partial<UsuarioInput>) =>
+  api.put<Usuario>(`/usuarios/${id}`, data);
+
+export const deleteUsuario = (id: string) =>
+  api.del<{ ok: boolean }>(`/usuarios/${id}`);

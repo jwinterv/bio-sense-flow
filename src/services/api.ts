@@ -20,8 +20,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const timeoutId = globalThis.setTimeout(() => controller.abort(), 5000);
 
   try {
+    const storedSession = typeof window === "undefined"
+      ? null
+      : localStorage.getItem("bio-sense-flow:session");
+    const token = storedSession ? JSON.parse(storedSession)?.token : null;
     const res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers || {}),
+      },
       signal: controller.signal,
       ...init,
     });

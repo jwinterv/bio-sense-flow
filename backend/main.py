@@ -12,6 +12,9 @@ from routers.monitoramento import router as monitoramento_router
 from routers.historico import router as historico_router
 from routers.alertas import router as alertas_router
 from routers.sensores import router as sensores_router
+from routers.aquisicao import router as aquisicao_router
+from routers.usuarios import router as usuarios_router
+from routers.auth import router as auth_router
 
 import smtplib
 from datetime import datetime
@@ -55,6 +58,9 @@ app.include_router(monitoramento_router)
 app.include_router(historico_router)
 app.include_router(alertas_router)
 app.include_router(sensores_router)
+app.include_router(aquisicao_router)
+app.include_router(usuarios_router)
+app.include_router(auth_router)
 
 
 # Configuracao do email

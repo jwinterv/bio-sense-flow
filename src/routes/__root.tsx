@@ -7,7 +7,10 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { LogIn } from "lucide-react";
+import { getSessao, getUsuarioAtual, limparSessao, login } from "@/services/authService";
+import type { Usuario } from "@/types";
 
 import appCss from "../styles.css?url";
 
@@ -107,7 +110,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>
@@ -121,9 +124,78 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [usuario, setUsuario] = useState<Usuario | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!getSessao()) {
+      setUsuario(null);
+      return;
+    }
+
+    getUsuarioAtual()
+      .then(setUsuario)
+      .catch(() => {
+        limparSessao();
+        setUsuario(null);
+      });
+  }, []);
+
+  if (usuario === undefined) {
+    return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Validando sessão...</div>;
+  }
+
+  if (!usuario) {
+    return <LoginScreen onLogin={setUsuario} />;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
     </QueryClientProvider>
+  );
+}
+
+function LoginScreen({ onLogin }: { onLogin: (usuario: Usuario) => void }) {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const sessao = await login(email, senha);
+      onLogin(sessao.usuario);
+    } catch {
+      setError("E-mail ou senha inválidos. Verifique também se a API está disponível.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+      <form onSubmit={submit} className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg">
+        <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <LogIn className="h-5 w-5" />
+        </div>
+        <h1 className="font-display text-2xl font-semibold text-foreground">Acessar painel</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Entre com suas credenciais para acessar o monitoramento.</p>
+        <label className="mt-5 flex flex-col gap-1.5 text-sm font-medium text-foreground">
+          E-mail
+          <input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+        </label>
+        <label className="mt-4 flex flex-col gap-1.5 text-sm font-medium text-foreground">
+          Senha
+          <input required type="password" value={senha} onChange={(event) => setSenha(event.target.value)} className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+        </label>
+        {error && <p className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+        <button disabled={loading} className="mt-6 w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+    </main>
   );
 }

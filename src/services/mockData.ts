@@ -1,4 +1,4 @@
-import type { Haste, Alerta, SeriePonto, Leira, Limites, Sensor, Usuario } from "@/types";
+import type { Haste, Alerta, SeriePonto, Leira, Limites, Sensor } from "@/types";
 
 export const mockLeira: Leira = {
   id: 1,
@@ -70,16 +70,5 @@ export const mockSensores: Sensor[] = [
     unidade: "°C",
     status: "online",
     valorAtual: 25.5,
-  }
-];
-
-export const mockUsuarios: Usuario[] = [
-  {
-    id: "u1",
-    nome: "Julia",
-    email: "julia@exemplo.com",
-    perfil: "administrador",
-    ativo: true,
-    ultimoAcesso: new Date().toISOString(),
   }
 ];

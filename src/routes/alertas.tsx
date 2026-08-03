@@ -14,6 +14,9 @@ import { Drawer } from "@/components/industrial/Drawer";
 import { StatCard } from "@/components/industrial/Panel";
 
 export const Route = createFileRoute("/alertas")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    alerta: typeof search.alerta === "string" ? search.alerta : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Alertas" },
@@ -24,6 +27,7 @@ export const Route = createFileRoute("/alertas")({
 });
 
 function AlertasPage() {
+  const { alerta: alertaSelecionadoId } = Route.useSearch();
   const { data: hastes } = useAsync(getHastes, []);
 
   const [filtros, setFiltros] = useState<AlertaFiltros>({
@@ -46,8 +50,12 @@ function AlertasPage() {
   useEffect(() => {
     if (data) {
       setAlertas(data);
+      const alertaSelecionado = data.find((alerta) => alerta.id === alertaSelecionadoId);
+      if (alertaSelecionado) {
+        setSelected(alertaSelecionado);
+      }
     }
-  }, [data]);
+  }, [alertaSelecionadoId, data]);
 
   const columns: Column<Alerta>[] = [
     {
@@ -113,6 +121,8 @@ async function handleResolver() {
     ...selected,
     status: "resolvido",
   });
+
+  window.dispatchEvent(new Event("alertas:atualizados"));
 }
 
   return (

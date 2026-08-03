@@ -6,6 +6,20 @@ status_map = {
     "Inativa": "offline",
 }
 
+def serialize_solo(npk):
+    return {
+        "temperatura": float(npk[0]) if npk and npk[0] is not None else None,
+        "umidade": float(npk[1]) if npk and npk[1] is not None else None,
+        "salinidade": float(npk[2]) if npk and npk[2] is not None else None,
+        "ssd": float(npk[3]) if npk and npk[3] is not None else None,
+        "nitrogenio": float(npk[4]) if npk and npk[4] is not None else None,
+        "fosforo": float(npk[5]) if npk and npk[5] is not None else None,
+        "potassio": float(npk[6]) if npk and npk[6] is not None else None,
+        "condutividade": float(npk[7]) if npk and npk[7] is not None else None,
+        "ph": float(npk[8]) if npk and npk[8] is not None else None,
+        "timestamp": npk[9].isoformat() if npk else None,
+    }
+
 
 def get_haste(id_haste: int, sensor: int):
 
@@ -194,12 +208,26 @@ def get_hastes_monitoramento():
                 ph,
                 timestamp
             FROM leituras_npk
+        WHERE id_haste = %s
+          AND sensor_id = 1
+        ORDER BY timestamp DESC
+        LIMIT 1;
+    """, (id_haste,))
+
+        npk_superior = cursor.fetchone()
+
+        cursor.execute("""
+            SELECT
+                temperatura, umidade, salinidade, ssd, nitrogenio,
+                fosforo, potassio, condutividade, ph, timestamp
+            FROM leituras_npk
             WHERE id_haste = %s
+              AND sensor_id = 2
             ORDER BY timestamp DESC
             LIMIT 1;
         """, (id_haste,))
 
-        npk = cursor.fetchone()
+        npk_inferior = cursor.fetchone()
 
         # ==========================
         # Última leitura de gás
@@ -235,18 +263,9 @@ def get_hastes_monitoramento():
                 "timestamp": dispositivo[5].isoformat() if dispositivo else None,
             },
 
-            "solo": {
-                "temperatura": float(npk[0]) if npk and npk[0] is not None else None,
-                "umidade": float(npk[1]) if npk and npk[1] is not None else None,
-                "salinidade": float(npk[2]) if npk and npk[2] is not None else None,
-                "ssd": float(npk[3]) if npk and npk[3] is not None else None,
-                "nitrogenio": float(npk[4]) if npk and npk[4] is not None else None,
-                "fosforo": float(npk[5]) if npk and npk[5] is not None else None,
-                "potassio": float(npk[6]) if npk and npk[6] is not None else None,
-                "condutividade": float(npk[7]) if npk and npk[7] is not None else None,
-                "ph": float(npk[8]) if npk and npk[8] is not None else None,
-                "timestamp": npk[9].isoformat() if npk else None,
-            },
+            "solo": serialize_solo(npk_superior),
+            "soloSuperior": serialize_solo(npk_superior),
+            "soloInferior": serialize_solo(npk_inferior),
 
             "gas": {
                 "metano": float(gas[0]) if gas and gas[0] is not None else None,

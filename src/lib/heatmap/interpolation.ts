@@ -4,8 +4,12 @@ export function interpolateValue(
   x: number,
   y: number,
   points: HeatmapPoint[],
-  power = 2
+  power = 1.25
 ): number {
+
+  if (points.length === 0) {
+    return Number.NaN;
+  }
 
   let numerator = 0;
   let denominator = 0;

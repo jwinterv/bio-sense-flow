@@ -6,12 +6,13 @@ import { Panel } from "@/components/industrial/Panel";
 import { DataTable, type Column } from "@/components/industrial/DataTable";
 import { StatusBadge } from "@/components/industrial/StatusBadge";
 import { Drawer } from "@/components/industrial/Drawer";
-import { Loading } from "@/components/industrial/Feedback";
+import { EmptyState, Loading } from "@/components/industrial/Feedback";
 import {
   createUsuario,
   deleteUsuario,
   getUsuarios,
   updateUsuario,
+  type UsuarioInput,
 } from "@/services/usuariosService";
 import type { Usuario, UserRole } from "@/types";
 
@@ -35,8 +36,17 @@ function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[] | null>(null);
   const [editing, setEditing] = useState<Usuario | null>(null);
   const [creating, setCreating] = useState(false);
+  const [integrationPending, setIntegrationPending] = useState(false);
 
-  const reload = () => getUsuarios().then(setUsuarios);
+  const reload = () => getUsuarios()
+    .then((data) => {
+      setUsuarios(data);
+      setIntegrationPending(false);
+    })
+    .catch(() => {
+      setUsuarios([]);
+      setIntegrationPending(true);
+    });
   useEffect(() => {
     reload();
   }, []);
@@ -129,6 +139,7 @@ function UsuariosPage() {
         action={
           <button
             onClick={() => setCreating(true)}
+            disabled={integrationPending}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
@@ -137,7 +148,12 @@ function UsuariosPage() {
         }
         bodyClassName="p-0"
       >
-        {!usuarios ? <Loading /> : <DataTable columns={cols} data={usuarios} rowKey={(u) => u.id} />}
+        {!usuarios ? <Loading /> : <DataTable
+          columns={cols}
+          data={usuarios}
+          rowKey={(u) => u.id}
+          empty={<EmptyState title="Nenhum usuário disponível" description={integrationPending ? "A integração com autenticação e usuários ainda está pendente." : "Nenhum usuário foi encontrado."} />}
+        />}
       </Panel>
 
       <Drawer
@@ -152,7 +168,7 @@ function UsuariosPage() {
           initial={editing ?? undefined}
           onSubmit={async (v) => {
             if (editing) await updateUsuario(editing.id, v);
-            else await createUsuario(v);
+            else await createUsuario({ ...v, senha: v.senha ?? "" });
             setEditing(null);
             setCreating(false);
             reload();
@@ -168,14 +184,25 @@ function UsuarioForm({
   onSubmit,
 }: {
   initial?: Usuario;
-  onSubmit: (v: Omit<Usuario, "id" | "ultimoAcesso">) => Promise<void>;
+  onSubmit: (v: UsuarioInput) => Promise<void>;
 }) {
   const [v, setV] = useState({
     nome: initial?.nome ?? "",
     email: initial?.email ?? "",
     perfil: (initial?.perfil ?? "operador") as UserRole,
     ativo: initial?.ativo ?? true,
+    senha: "",
   });
+
+  useEffect(() => {
+    setV({
+      nome: initial?.nome ?? "",
+      email: initial?.email ?? "",
+      perfil: (initial?.perfil ?? "operador") as UserRole,
+      ativo: initial?.ativo ?? true,
+      senha: "",
+    });
+  }, [initial]);
 
   const cls =
     "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary";
@@ -189,6 +216,10 @@ function UsuarioForm({
       <label className="flex flex-col gap-1">
         <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">E-mail</span>
         <input required type="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} className={cls} />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Senha {initial && "(deixe em branco para manter)"}</span>
+        <input required={!initial} minLength={8} type="password" value={v.senha} onChange={(e) => setV({ ...v, senha: e.target.value })} className={cls} />
       </label>
       <label className="flex flex-col gap-1">
         <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Perfil</span>

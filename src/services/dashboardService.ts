@@ -194,7 +194,7 @@ export async function getDashboard(): Promise<DashboardResumo> {
 
     getAlertas(),
 
-    getHastes(),
+    api.get<Haste[]>("/monitoramento/hastes"),
   ]);
 
   return {
